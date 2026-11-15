@@ -1,0 +1,56 @@
+# Publishes the site to GitHub Pages:
+#   main      -> https://paigow.itschefff.com/          (live)
+#   unstable  -> https://paigow.itschefff.com/unstable/ (preview for testing before merging)
+# Runs on every push to either branch and rebuilds both, so neither one wipes out the other.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, unstable]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          # Live site: always the latest main.
+          git archive origin/main | tar -x -C _site
+          # Preview: the latest unstable branch, if there is one.
+          if git rev-parse --verify -q origin/unstable >/dev/null; then
+            mkdir -p _site/unstable
+            git archive origin/unstable | tar -x -C _site/unstable
+            rm -rf _site/unstable/.github _site/unstable/CNAME
+            # Keep the preview out of search results, and name its Home Screen app differently.
+            sed -i '1i <meta name="robots" content="noindex">' _site/unstable/index.html
+            sed -i -e 's|"name": "\([^"]*\)"|"name": "\1 (unstable)"|' \
+                   -e 's|"short_name": "\([^"]*\)"|"short_name": "\1 β"|' _site/unstable/manifest.webmanifest
+          fi
+          rm -rf _site/.github
+          ls -R _site | head -50
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
