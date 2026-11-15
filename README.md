@@ -18,8 +18,10 @@ These are working defaults, not final. They are waiting on a review by someone w
 - **Bet split 50/50.** Half of the total bet rides on the 5-card hand and half on the 3-card hand. Each half pays its own paytable multiplier.
 - **Twos are wild** in both hands. Five of a kind pays as four of a kind.
 - **Jacks & Twos** means a pair of Jacks or better (J, Q, K or A). A wild 2 can complete the pair.
-- **5-card must beat 3-card** (the traditional Pai Gow rule) exists as a toggle in the Pays screen and is **off by default**.
-- **Paytable is too generous.** With best play it currently returns about 6x the amount bet (roughly 600%), so the multipliers need tuning.
+- **5-card must beat 3-card**, always. As in traditional Pai Gow, the 5-card hand must rank higher than the 3-card hand. If it doesn't (a foul), DRAW stays locked and the game says so until you swap cards to fix it. Every deal has at least one legal arrangement.
+  - Hands are compared by standard poker rank (high card, pair, two pair, three of a kind, straight, flush, full house, four of a kind, straight flush, five of a kind), so a 3-card straight or flush outranks a 5-card three of a kind.
+  - Within the same rank, the higher cards win (pair rank first, then kickers). A tie counts as a foul. Wild 2s take whatever value makes each hand strongest.
+- **Paytable is too generous.** With the 5-card rule on and best play it returns about 2.6x the amount bet (roughly 264%, from a 100,000-hand simulation), so the multipliers still need tuning.
 - Coins are free demo coins. Buy and Sale are placeholders.
 
 ## Open questions for review
@@ -27,6 +29,5 @@ These are working defaults, not final. They are waiting on a review by someone w
 - Should DRAW replace cards, as in video poker, instead of rearranging only?
 - Is the 50/50 bet split right, or should each hand take its own bet?
 - What should the paytable multipliers be?
-- Should the 5-card-must-beat-3-card rule be on?
 
 Comments and pull requests welcome.

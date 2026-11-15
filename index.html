@@ -166,8 +166,6 @@ button.ctl:not(:disabled):active{transform:translateY(2px)}
 .panel p,.panel li{font:500 13.5px/1.45 var(--f-ui);color:#efdfe7;margin:0}
 .panel ul{margin:0;padding-left:18px}
 .panel .x{position:absolute;right:10px;top:8px;width:34px;height:34px;border-radius:50%;font:20px var(--f-display);color:#fff;background:rgba(255,255,255,.08)}
-.toggle{display:flex;align-items:center;gap:10px;margin-top:6px;font:600 13.5px var(--f-ui);color:#fff;cursor:pointer}
-.toggle input{width:18px;height:18px;accent-color:#ff2e7e}
 .packs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
 .pack{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border:1.5px solid rgba(255,140,190,.5);border-radius:8px;background:rgba(255,46,126,.07)}
 .pack svg{width:38px;height:38px}
@@ -262,7 +260,7 @@ button.ctl:not(:disabled):active{transform:translateY(2px)}
         <li>Five of a kind pays as 4-of-a-Kind. Aces count high or low in straights.</li>
       </ul>
       <h3>Table rules</h3>
-      <label class="toggle"><input type="checkbox" id="pgRule"> Pai Gow rule: the 5-card hand must rank at least as high as the 3-card hand</label>
+      <p>The 5-card hand must rank higher than the 3-card hand. If it doesn't, Draw stays locked until you swap cards to fix it.</p>
       <p class="demo">Demo coins only. No real money.</p>
     </div>
   </div>
@@ -343,11 +341,12 @@ function eval3(cards){
   else key='high';
   return PAY3.find(p=>p.key===key);
 }
-// Best split of 8 cards into 5 + 3 by total pay (used for the "best possible" hint & tests)
+// Best legal split of 8 cards into 5 + 3 by total pay (used for the "best possible" hint & tests)
 function bestSplit(cards){
   let best=null;
   for(let i=0;i<8;i++)for(let j=i+1;j<8;j++)for(let k=j+1;k<8;k++){
     const low=[cards[i],cards[j],cards[k]], high=cards.filter((_,x)=>x!==i&&x!==j&&x!==k);
+    if(fouled(high,low)) continue;
     const h=eval5(high), l=eval3(low), t=h.pay+l.pay;
     if(!best||t>best.total) best={total:t,high:h,low:l,idx:[i,j,k]};
   }
@@ -359,11 +358,11 @@ const fmt=n=>Math.round(n).toLocaleString('en-US');
 const BETS=[10000,20000,50000,100000,200000,500000,1000000,2000000,5000000,10000000];
 const START=5000000, CW=92, CH=112, GAP=7, X0=256, Y0=117, Y1=238;
 const SLOTS=[0,1,2,3,4].map(i=>({x:X0+i*(CW+GAP),y:Y0})).concat([1,2,3].map(i=>({x:X0+i*(CW+GAP),y:Y1})));
-const S={balance:START,betIdx:2,phase:'idle',hand:[],sel:-1,sound:true,paiGowRule:false};
+const S={balance:START,betIdx:2,phase:'idle',hand:[],sel:-1,sound:true};
 function load(){try{const d=JSON.parse(localStorage.getItem('pg53')||'{}');
   if(typeof d.balance==='number')S.balance=d.balance; if(typeof d.betIdx==='number')S.betIdx=Math.min(BETS.length-1,Math.max(0,d.betIdx));
-  if(typeof d.sound==='boolean')S.sound=d.sound; if(typeof d.paiGowRule==='boolean')S.paiGowRule=d.paiGowRule;}catch(e){}}
-function save(){try{localStorage.setItem('pg53',JSON.stringify({balance:S.balance,betIdx:S.betIdx,sound:S.sound,paiGowRule:S.paiGowRule}))}catch(e){}}
+  if(typeof d.sound==='boolean')S.sound=d.sound;}catch(e){}}
+function save(){try{localStorage.setItem('pg53',JSON.stringify({balance:S.balance,betIdx:S.betIdx,sound:S.sound}))}catch(e){}}
 
 /* sound */
 let AC=null;
@@ -388,11 +387,26 @@ function buildTables(){
 }
 function mark(tableId,key,cls){ $(tableId).querySelectorAll('.row').forEach(r=>r.classList.toggle(cls,r.dataset.k===key)); }
 
-/* hand levels for the optional Pai Gow rule */
-const LV3={high:0,pair:1,three:3,straight:4,flush:5,sflush:8};
-const LV5={three:3,straight:4,flush:5,full:6,four:7,sflush:8,royal:9};
-function level5(c){const e=eval5(c); if(LV5[e.key]!=null)return LV5[e.key]; const a=analyze(c);
-  const pairs=a.ranks.filter(r=>a.counts[r]>=2).length; return pairs>=2?2:(a.maxCount+a.w>=2?1:0);}
+/* Pai Gow rule (always on): the 5-card hand must rank higher than the 3-card hand.
+   rankHand gives [category, tiebreak ranks...] in standard poker order, with each wild 2 taking its best value. */
+function rankNat(cards){
+  const n=cards.length, rs=cards.map(c=>c.r).sort((a,b)=>b-a), cnt={}; rs.forEach(r=>cnt[r]=(cnt[r]||0)+1);
+  const g=Object.keys(cnt).map(Number).sort((a,b)=>cnt[b]-cnt[a]||b-a), c0=cnt[g[0]], c1=g.length>1?cnt[g[1]]:0;
+  const flush=new Set(cards.map(c=>c.s)).size===1;
+  let st=0; if(g.length===n){ if(rs[0]-rs[n-1]===n-1) st=rs[0]; else if(rs[0]===14&&rs[1]===n&&rs[1]-rs[n-1]===n-2) st=n; }
+  const cat=c0>=5?9:st&&flush?8:c0===4?7:c0===3&&c1===2?6:flush?5:st?4:c0===3?3:c0===2&&c1===2?2:c0===2?1:0;
+  return st&&(cat===8||cat===4)?[cat,st]:[cat,...g];
+}
+function cmpRank(a,b){ for(let i=0;i<Math.max(a.length,b.length);i++){ const d=(a[i]??-1)-(b[i]??-1); if(d)return d; } return 0; }
+function rankHand(cards){
+  const nat=cards.filter(c=>c.r!==2), w=cards.length-nat.length;
+  if(!w) return rankNat(cards);
+  const suit=new Set(nat.map(c=>c.s)).size<=1?(nat[0]?nat[0].s:'S'):'W'; let best=null;
+  (function go(k,min,wild){ if(k===w){ const r=rankNat(nat.concat(wild)); if(!best||cmpRank(r,best)>0)best=r; return; }
+    for(let r=min;r<=14;r++) go(k+1,r,wild.concat({r,s:suit})); })(0,2,[]);
+  return best;
+}
+function fouled(hi,lo){ return cmpRank(rankHand(hi),rankHand(lo))<=0; }
 
 /* cards */
 const cardEls=new Map(); // card id -> element
@@ -434,7 +448,7 @@ function tapCard(el){
 }
 
 /* labels / live evaluation */
-function current(){ const hi=S.hand.slice(0,5), lo=S.hand.slice(5); return {h:eval5(hi),l:eval3(lo),foul:S.paiGowRule&&level5(hi)<LV3[eval3(lo).key]}; }
+function current(){ const hi=S.hand.slice(0,5), lo=S.hand.slice(5); return {h:eval5(hi),l:eval3(lo),foul:fouled(hi,lo)}; }
 function updateLabels(){
   if(!S.hand.length){$('hl5').innerHTML='';$('hl3').innerHTML='';mark('pt5','','on');mark('pt3','','on');return;}
   const {h,l,foul}=current(), half=BETS[S.betIdx]/2;
@@ -543,7 +557,7 @@ function fit(){ const W=innerWidth,H=innerHeight, cs=getComputedStyle($('safe'))
 function init(){
   load(); buildTables(); drawCracks(); placeholderBacks(); renderMoney(); fit();
   $('fan').innerHTML=['10','J','Q','K','A'].map((r,i)=>`<div style="transform:rotate(${(i-2)*13}deg)">${r}<br>◆</div>`).join('');
-  $('snd').textContent=S.sound?'Sound on':'Sound off'; $('pgRule').checked=S.paiGowRule;
+  $('snd').textContent=S.sound?'Sound on':'Sound off';
   addEventListener('resize',fit); addEventListener('orientationchange',()=>setTimeout(fit,300)); addEventListener('pageshow',fit); if(window.visualViewport) visualViewport.addEventListener('resize',fit); setTimeout(fit,500);
   const hideLoad=()=>{$('loading').classList.add('gone');}; later(hideLoad,2100); $('loading').addEventListener('click',hideLoad);
   $('drawBtn').addEventListener('click',onDraw);
@@ -553,7 +567,6 @@ function init(){
   $('paysBtn').addEventListener('click',()=>{$('pays').hidden=false});
   $('buyBtn').addEventListener('click',()=>openStore('buy')); $('saleBtn').addEventListener('click',()=>openStore('sale'));
   $('snd').addEventListener('click',()=>{S.sound=!S.sound;save();$('snd').textContent=S.sound?'Sound on':'Sound off';});
-  $('pgRule').addEventListener('change',e=>{S.paiGowRule=e.target.checked;save();updateLabels();});
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('.ov').hidden=true));
   ['pays','store'].forEach(id=>$(id).addEventListener('click',e=>{if(e.target.id===id)$(id).hidden=true}));
   $('bigwin').addEventListener('click',()=>{$('bigwin').hidden=true});
