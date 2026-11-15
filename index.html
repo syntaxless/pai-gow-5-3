@@ -558,3 +558,5 @@ init();
 // Home Screen app: a network-first service worker fetches the latest game on every launch.
 if('serviceWorker' in navigator && location.protocol==='https:') addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{}));
 </script>
+<!-- GoatCounter analytics (https://paigow.goatcounter.com). Cross-origin, so sw.js never caches or intercepts it. -->
+<script data-goatcounter="https://paigow.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
