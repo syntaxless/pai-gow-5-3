@@ -2,6 +2,8 @@
 
 A single-page casino card game designed by Chefff. Open `index.html` in any browser to play; it needs no build step or server.
 
+Play it at https://paigow.itschefff.com. Changes waiting for review can be tried at https://paigow.itschefff.com/unstable/ before they go live.
+
 ## How a round works
 
 1. Set your bet and deal. You get 8 cards: the top row is your **5-card hand**, the bottom row is your **3-card hand**.

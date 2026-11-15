@@ -11,8 +11,25 @@ These are the rules for any Claude (or person) making changes to this repo. Foll
 
 - `main` is live. Every commit on it is deployed automatically by GitHub Pages to https://paigow.itschefff.com.
 - Do all work on your own branch, push the branch, and open a pull request into `main`.
+- Preview every change at https://paigow.itschefff.com/unstable/ before it is merged (see below).
 - Never push directly to `main`, and never merge a pull request yourself. Chefff reviews and merges.
 - Keep each pull request to one focused change, and describe in it what changed and why.
+
+## Preview on /unstable before merging
+
+The `unstable` branch is deployed to https://paigow.itschefff.com/unstable/ about a minute after every push. It is a shared test slot: whatever was pushed to it last is what the preview shows.
+
+1. When your branch is ready and its pull request is open, publish it to the preview:
+   `git push --force origin HEAD:unstable`
+2. Wait for the "Deploy to GitHub Pages" run in the repo's Actions tab to finish, then open https://paigow.itschefff.com/unstable/ and play a few hands there.
+3. Share the preview link with Chefff (and the pull request link), and say which change it shows.
+4. The pull request is merged into `main` only after Chefff (or the friend reviewing it) has tried the preview and approved. Chefff does the merge.
+
+Notes:
+- Only one change can be on the preview at a time. Before pushing, check with Chefff that nobody else's change is being tested there right now, and after a merge it's fine to overwrite it.
+- Always branch from fresh `main`, so the preview is your change on top of the live game and nothing else.
+- The preview is not counted in GoatCounter, is hidden from search engines, and installs to the Home Screen as a separate app named "Pai Gow β". Its service worker and cache are separate from the live site's.
+- `.github/workflows/pages.yml` builds the site. Leave it alone unless the change is about deploying.
 
 ## Files to leave alone
 
