@@ -559,4 +559,8 @@ init();
 if('serviceWorker' in navigator && location.protocol==='https:') addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{}));
 </script>
 <!-- GoatCounter analytics (https://paigow.goatcounter.com). Cross-origin, so sw.js never caches or intercepts it. -->
+<script>
+// Home Screen app launches are counted as their own page, "/home-screen-app", so they show separately from browser visits.
+if(matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone) window.goatcounter={path:()=>'/home-screen-app',title:'Home Screen app'};
+</script>
 <script data-goatcounter="https://paigow.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
