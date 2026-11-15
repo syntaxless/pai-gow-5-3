@@ -19,7 +19,14 @@ body{margin:0}
 body{background:var(--night);color:var(--blush);overflow:hidden;font-family:var(--f-ui);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 #bg{position:fixed;inset:0;width:100%;height:100%;display:block}
 #stage{position:absolute;left:50%;top:50%;width:1000px;height:460px;transform-origin:50% 50%}
-.rotate-hint{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));text-align:center;font:600 13px var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--neon-soft);z-index:50}
+/* rotate lock: phones and tablets in portrait pause here until turned to landscape */
+.rotate-lock{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));background:radial-gradient(ellipse at 50% 45%,rgba(255,30,110,.2),transparent 65%),rgba(12,8,13,.97);text-align:center}
+.rotate-lock .phone{position:relative;width:62px;height:104px;border:3px solid #ff8fbd;border-radius:12px;background:rgba(40,4,18,.9);box-shadow:0 0 10px #ff2e7e,inset 0 0 8px rgba(255,46,126,.5);animation:tilt 2.4s ease-in-out infinite}
+.rotate-lock .phone::after{content:"";position:absolute;left:50%;bottom:7px;width:12px;height:3px;margin-left:-6px;border-radius:2px;background:#ff8fbd;box-shadow:0 0 6px #ff2e7e}
+@keyframes tilt{0%,15%{transform:rotate(0)}45%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+.rl-title{font:34px/1.1 var(--f-display);letter-spacing:.02em;background:linear-gradient(#ff7c98,#e3204e 55%,#a90f35);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:1px #e6c46e;filter:drop-shadow(0 3px 0 #5e3d0f) drop-shadow(0 0 14px rgba(255,46,126,.5))}
+.rl-sub{font:600 13px/1.6 var(--f-neon);letter-spacing:.28em;text-transform:uppercase;color:#fff;text-shadow:0 0 8px #ff2e7e}
+body.locked #stage,body.locked #stage *{animation-play-state:paused!important}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
 button:focus-visible,.card:focus-visible{outline:2px solid #fff;outline-offset:3px}
 
@@ -146,7 +153,11 @@ button.ctl:not(:disabled):active{transform:translateY(2px)}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 <canvas id="bg" aria-hidden="true"></canvas>
-<div class="rotate-hint" id="rot" hidden>Turn your phone sideways to play</div>
+<div class="rotate-lock" id="rot" hidden role="alertdialog" aria-label="Rotate your device">
+  <div class="phone" aria-hidden="true"></div>
+  <div class="rl-title">TURN SIDEWAYS</div>
+  <div class="rl-sub">Game paused<br>Rotate to landscape to play</div>
+</div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="s-H" viewBox="0 0 100 100"><path fill="currentColor" d="M50 90C22 68 4 52 4 31 4 15 16 5 30 5c9 0 16 5 20 13 4-8 11-13 20-13 14 0 26 10 26 26 0 21-18 37-46 59z"/></symbol>
   <symbol id="s-D" viewBox="0 0 100 100"><path fill="currentColor" d="M50 3 88 50 50 97 12 50z"/></symbol>
@@ -326,6 +337,13 @@ function save(){try{localStorage.setItem('pg53',JSON.stringify({balance:S.balanc
 
 /* sound */
 let AC=null;
+/* portrait lock: on touch devices held upright the game pauses (timers, animations, sound) until rotated */
+let locked=false; const timers=new Set();
+function later(fn,ms){ const t={fn,left:ms,start:0,id:0}; timers.add(t); if(!locked)arm(t); return t; }
+function arm(t){ t.start=performance.now(); t.id=setTimeout(()=>{timers.delete(t);t.fn();},t.left); }
+function setLock(on){ if(on===locked)return; locked=on; $('rot').hidden=!on; $('stage').inert=on; document.body.classList.toggle('locked',on);
+  timers.forEach(t=>{ if(on){clearTimeout(t.id);t.left=Math.max(0,t.left-(performance.now()-t.start));} else arm(t); });
+  try{ if(AC) on?AC.suspend():AC.resume(); }catch(e){} }
 function tone(f,d=.08,type='triangle',v=.08,delay=0){ if(!S.sound)return; try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
   const t=AC.currentTime+delay,o=AC.createOscillator(),g=AC.createGain(); o.type=type;o.frequency.setValueAtTime(f,t);
   g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(.0001,t+d); o.connect(g).connect(AC.destination); o.start(t); o.stop(t+d+.02);}catch(e){} }
@@ -369,7 +387,7 @@ function renderHand(dealAnim){
     el.innerHTML=cardHTML(c); el.style.left=SLOTS[i].x+'px'; el.style.top=SLOTS[i].y+'px';
     el.addEventListener('click',()=>tapCard(el)); el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tapCard(el)}});
     box.appendChild(el); cardEls.set(cid(c),el);
-    if(dealAnim) setTimeout(()=>{el.classList.remove('down');sfx.deal(i)},120+i*80);
+    if(dealAnim) later(()=>{el.classList.remove('down');sfx.deal(i)},120+i*80);
   });
   updateLabels();
 }
@@ -403,7 +421,7 @@ function setMsg(t,cls=''){const m=$('msg'); m.textContent=t; m.className='msg'+(
 /* money */
 function renderMoney(){ $('bal').textContent=fmt(S.balance); $('bet').textContent=fmt(BETS[S.betIdx]);
   const busy=S.phase==='arrange'; $('betDown').disabled=busy||S.betIdx===0; $('betUp').disabled=busy||S.betIdx===BETS.length-1; $('maxBtn').disabled=busy; }
-function countUp(el,to,ms=900,from=0){ const t0=performance.now(); (function f(t){const k=Math.min(1,(t-t0)/ms); el.textContent=fmt(from+(to-from)*(1-Math.pow(1-k,3))); if(k<1)requestAnimationFrame(f);})(t0); }
+function countUp(el,to,ms=900,from=0){ let e=0,p=performance.now(); (function f(t){if(!locked)e+=t-p; p=t; const k=Math.min(1,e/ms); el.textContent=fmt(from+(to-from)*(1-Math.pow(1-k,3))); if(k<1)requestAnimationFrame(f);})(p); }
 
 /* flow */
 function deal(){
@@ -426,7 +444,7 @@ function settle(){
   const net=w-bet;
   setMsg(net>0?`You won ${fmt(w)}`:(net===0?`Push. ${fmt(w)} back`:`${fmt(w)} back. Deal again`),net>0?'good':'');
   $('drawLbl').textContent='DEAL'; $('drawBtn').disabled=false; renderMoney();
-  if(w>=bet*10){ sfx.big(); setTimeout(()=>showBigWin(w,h,l),500); } else if(net>0) sfx.win(); else sfx.lose();
+  if(w>=bet*10){ sfx.big(); later(()=>showBigWin(w,h,l),500); } else if(net>0) sfx.win(); else sfx.lose();
 }
 function onDraw(){ if(S.phase==='arrange')settle(); else deal(); }
 function showBigWin(w,h,l){ $('bwhands').textContent=`${h.pay?h.name+' + ':''}${l.name}`; $('bigwin').hidden=false; countUp($('bwamt'),w,1400); }
@@ -441,7 +459,7 @@ function openStore(kind){
   }
   $('store').hidden=false;
 }
-function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;$('stage').appendChild(d);setTimeout(()=>d.style.opacity=0,1400);setTimeout(()=>d.remove(),1900);}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;$('stage').appendChild(d);later(()=>d.style.opacity=0,1400);later(()=>d.remove(),1900);}
 
 /* background: pagoda skyline at night */
 function drawBG(){
@@ -484,7 +502,8 @@ function drawCracks(){ let s=3; const r=()=>(s=(s*16807)%2147483647)/2147483647;
   $('cracks').innerHTML=`<path d="${d}" fill="none" stroke="#fff" stroke-width=".8"/>`; }
 
 function fit(){ const W=innerWidth,H=innerHeight, s=Math.min(W/1000,H/460)*0.98;
-  $('stage').style.transform=`translate(-50%,-50%) scale(${s})`; $('rot').hidden=!(H>W*1.1); drawBG(); }
+  $('stage').style.transform=`translate(-50%,-50%) scale(${s})`; drawBG();
+  setLock(H>W && matchMedia('(hover:none) and (pointer:coarse)').matches); }
 
 /* wiring */
 function init(){
@@ -492,7 +511,7 @@ function init(){
   $('fan').innerHTML=['10','J','Q','K','A'].map((r,i)=>`<div style="transform:rotate(${(i-2)*13}deg)">${r}<br>◆</div>`).join('');
   $('snd').textContent=S.sound?'Sound on':'Sound off'; $('pgRule').checked=S.paiGowRule;
   addEventListener('resize',fit);
-  const hideLoad=()=>{$('loading').classList.add('gone');}; setTimeout(hideLoad,2100); $('loading').addEventListener('click',hideLoad);
+  const hideLoad=()=>{$('loading').classList.add('gone');}; later(hideLoad,2100); $('loading').addEventListener('click',hideLoad);
   $('drawBtn').addEventListener('click',onDraw);
   $('betDown').addEventListener('click',()=>{if(S.betIdx>0){S.betIdx--;save();renderMoney();updateLabels();tone(400,.04)}});
   $('betUp').addEventListener('click',()=>{if(S.betIdx<BETS.length-1){S.betIdx++;save();renderMoney();updateLabels();tone(600,.04)}});
