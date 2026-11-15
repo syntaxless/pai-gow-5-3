@@ -25,10 +25,10 @@ These are the rules for any Claude (or person) making changes to this repo. Foll
 - Because everyone edits the same file, keep changes small and focused, and touch only the parts your change needs. Don't reformat, reorder or restyle code you aren't changing; that causes merge conflicts.
 - If `main` has moved on while your branch is open, pull it and rebase or merge before asking for review.
 
-## Who owns what
+## Visual and design changes
 
-- **Chefff owns the visuals and art**: layout, colors, fonts, card and coin artwork, animations and screens. Don't change these unless Chefff asks.
-- **Rules and payouts are the collaborator's area**: hand rankings, wild cards, how the bet is split, the paytables, the 5-card-must-beat-3-card rule, and the game logic behind them.
+- Visual changes (layout, colors, fonts, card and coin artwork, animations, screens) are welcome, but agree on them with Chefff before making them. Chefff did the original art and design.
+- Keep visual changes in their own pull request, separate from rules and payout changes.
 
 ## Keep the README in step
 
