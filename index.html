@@ -1,3 +1,6 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pai Gow 5-3 Poker</title>
 <meta name="description" content="Arrange 8 cards into a 5-card and a 3-card poker hand. 2s are wild. Free to play in your browser.">
 <link rel="canonical" href="https://paigow.itschefff.com/">
@@ -42,7 +45,9 @@ html,body{height:100%}
 body{margin:0}
 body{background:var(--night);color:var(--blush);overflow:hidden;font-family:var(--f-ui);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 #bg{position:fixed;inset:0;width:100%;height:100%;display:block}
-#stage{position:absolute;left:50%;top:50%;width:1000px;height:460px;transform-origin:50% 50%}
+/* #safe measures the notch and home-indicator insets for fit(), so the stage stays clear of them */
+#safe{position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+#stage{position:fixed;left:50%;top:50%;width:1000px;height:460px;transform-origin:50% 50%}
 /* rotate lock: phones and tablets in portrait pause here until turned to landscape */
 .rotate-lock{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));background:radial-gradient(ellipse at 50% 45%,rgba(255,30,110,.2),transparent 65%),rgba(12,8,13,.97);text-align:center}
 .rotate-lock .phone{position:relative;width:62px;height:104px;border:3px solid #ff8fbd;border-radius:12px;background:rgba(40,4,18,.9);box-shadow:0 0 10px #ff2e7e,inset 0 0 8px rgba(255,46,126,.5);animation:tilt 2.4s ease-in-out infinite}
@@ -177,6 +182,7 @@ button.ctl:not(:disabled):active{transform:translateY(2px)}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 <canvas id="bg" aria-hidden="true"></canvas>
+<div id="safe" aria-hidden="true"></div>
 <div class="rotate-lock" id="rot" hidden role="alertdialog" aria-label="Rotate your device">
   <div class="phone" aria-hidden="true"></div>
   <div class="rl-title">TURN SIDEWAYS</div>
@@ -525,8 +531,12 @@ function drawCracks(){ let s=3; const r=()=>(s=(s*16807)%2147483647)/2147483647;
   for(let i=0;i<22;i++){ let x=r()*1000,y=r()*46; d+=`M${x.toFixed(1)} ${y.toFixed(1)}`; for(let j=0;j<5;j++){x+=(r()-.3)*40;y+=(r()-.5)*14;d+=`L${x.toFixed(1)} ${y.toFixed(1)}`;} }
   $('cracks').innerHTML=`<path d="${d}" fill="none" stroke="#fff" stroke-width=".8"/>`; }
 
-function fit(){ const W=innerWidth,H=innerHeight, s=Math.min(W/1000,H/460)*0.98;
-  $('stage').style.transform=`translate(-50%,-50%) scale(${s})`; drawBG();
+let fitKey='';
+function fit(){ const W=innerWidth,H=innerHeight, cs=getComputedStyle($('safe')), inset=k=>parseFloat(cs['padding'+k])||0;
+  const t=inset('Top'),r=inset('Right'),b=inset('Bottom'),l=inset('Left'), aw=W-l-r, ah=H-t-b, s=Math.min(aw/1000,ah/460)*0.98, st=$('stage');
+  st.style.left=(l+aw/2)+'px'; st.style.top=(t+ah/2)+'px';
+  st.style.transform=`translate(-50%,-50%) scale(${s})`;
+  const key=[W,H,t,r,b,l].join(); if(key!==fitKey){ fitKey=key; drawBG(); }
   setLock(H>W && matchMedia('(hover:none) and (pointer:coarse)').matches); }
 
 /* wiring */
@@ -534,7 +544,7 @@ function init(){
   load(); buildTables(); drawCracks(); placeholderBacks(); renderMoney(); fit();
   $('fan').innerHTML=['10','J','Q','K','A'].map((r,i)=>`<div style="transform:rotate(${(i-2)*13}deg)">${r}<br>◆</div>`).join('');
   $('snd').textContent=S.sound?'Sound on':'Sound off'; $('pgRule').checked=S.paiGowRule;
-  addEventListener('resize',fit);
+  addEventListener('resize',fit); addEventListener('orientationchange',()=>setTimeout(fit,300)); addEventListener('pageshow',fit); if(window.visualViewport) visualViewport.addEventListener('resize',fit); setTimeout(fit,500);
   const hideLoad=()=>{$('loading').classList.add('gone');}; later(hideLoad,2100); $('loading').addEventListener('click',hideLoad);
   $('drawBtn').addEventListener('click',onDraw);
   $('betDown').addEventListener('click',()=>{if(S.betIdx>0){S.betIdx--;save();renderMoney();updateLabels();tone(400,.04)}});
